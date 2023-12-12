@@ -46,23 +46,22 @@ class CADSExtensionScript(scripts.Script):
                         active = gr.Checkbox(value=False, default=False, label="Active", elem_id='cads_active')
                         rescale = gr.Checkbox(value=True, default=True, label="Rescale CFG", elem_id = 'cads_rescale')
                         with gr.Row():
+                                step_start = gr.Slider(value = 0, minimum = 0, maximum = 50, step = 1, label="Tau 1 Step", elem_id = 'cads_tau1_step', info="Step to start. (0=disable)")
+                                step_stop = gr.Slider(value = 0, minimum = 0, maximum = 50, step = 1, label="Tau 2 Step", elem_id = 'cads_tau1_step', info="Step to start. (0=disable)")
+                        with gr.Row():
                                 t1 = gr.Slider(value = 0.6, minimum = 0.0, maximum = 1.0, step = 0.05, label="Tau 1", elem_id = 'cads_tau1', info="Step to start interpolating from full strength. Default 0.6")
                                 t2 = gr.Slider(value = 0.9, minimum = 0.0, maximum = 1.0, step = 0.05, label="Tau 2", elem_id = 'cads_tau2', info="Step to stop affecting image. Default 0.9")
                         with gr.Row():
-                                noise_scale = gr.Slider(value = 0.25, minimum = 0.0, maximum = 1.0, step = 0.01, label="Noise Scale", elem_id = 'cads_noise_scale', info='Scale of noise injected at every time step, default 0.25, recommended <= 0.3')
-                                mixing_factor= gr.Slider(value = 1.0, minimum = 0.0, maximum = 1.0, step = 0.01, label="Mixing Factor", elem_id = 'cads_mixing_factor', info='Regularization factor, lowering this will increase the diversity of the images with more chance of divergence, default 1.0')
+                                noise_scale = gr.Slider(value = 0.2, minimum = 0.0, maximum = 1.0, step = 0.01, label="Noise Scale", elem_id = 'cads_noise_scale', info='Scale of noise injected at every time step, default 0.25, recommended <= 0.3')
+                                mixing_factor= gr.Slider(value = 0.8, minimum = 0.0, maximum = 1.0, step = 0.01, label="Mixing Factor", elem_id = 'cads_mixing_factor', info='Regularization factor, lowering this will increase the diversity of the images with more chance of divergence, default 1.0')
                         with gr.Accordion('Experimental', open=False):
                                 apply_to_hr_pass = gr.Checkbox(value=False, default=False, label="Apply to Hires. Fix", elem_id='cads_hr_fix_active', info='Requires a very high denoising value to work. Default False')
-                active.do_not_save_to_config = True
-                rescale.do_not_save_to_config = True
-                t1.do_not_save_to_config = True
-                t2.do_not_save_to_config = True
-                noise_scale.do_not_save_to_config = True
-                mixing_factor.do_not_save_to_config = True
-                apply_to_hr_pass.do_not_save_to_config = True
+
                 self.infotext_fields = [
                         (active, lambda d: gr.Checkbox.update(value='CADS Active' in d)),
                         (rescale, 'CADS Rescale'),
+                        (step_start, 'CADS Tau 1 Step'),
+                        (step_stop, 'CADS Tau 2 Step'),
                         (t1, 'CADS Tau 1'),
                         (t2, 'CADS Tau 2'),
                         (noise_scale, 'CADS Noise Scale'),
@@ -72,20 +71,34 @@ class CADSExtensionScript(scripts.Script):
                 self.paste_field_names = [
                         'cads_active',
                         'cads_rescale',
+                        'cads_tau1_step',
+                        'cads_tau2_step',
                         'cads_tau1',
                         'cads_tau2',
                         'cads_noise_scale',
                         'cads_mixing_factor',
                         'cads_hr_fix_active',
                 ]
-                return [active, t1, t2, noise_scale, mixing_factor, rescale, apply_to_hr_pass]
+                return [active, step_start, step_stop, t1, t2, noise_scale, mixing_factor, rescale, apply_to_hr_pass]
 
-        def before_process_batch(self, p, active, t1, t2, noise_scale, mixing_factor, rescale, apply_to_hr_pass, *args, **kwargs):
+        def before_process_batch(self, p, active, step_start, step_stop, t1, t2, noise_scale, mixing_factor, rescale, apply_to_hr_pass, *args, **kwargs):
                 active = getattr(p, "cads_active", active)
                 if active is False:
                         return
-                t1 = getattr(p, "cads_tau1", t1)
-                t2 = getattr(p, "cads_tau2", t2)
+
+                steps = getattr(p, "steps", -1)
+                if step_start != 0:
+                        step_start = getattr(p, "cads_tau1_step", step_start)
+                        t1 = max(min(step_start / steps, 1.0), 0.0)
+                else:
+                        t1 = getattr(p, "cads_tau1", t1)
+
+                if step_stop != 0:
+                        step_stop = getattr(p, "cads_tau2_step", step_stop)
+                        t2 = max(min(step_stop / steps, 1.0), 0.0)
+                else:
+                        t2 = getattr(p, "cads_tau2", t2)
+
                 noise_scale = getattr(p, "cads_noise_scale", noise_scale)
                 mixing_factor = getattr(p, "cads_mixing_factor", mixing_factor)
                 rescale = getattr(p, "cads_rescale", rescale)
@@ -98,6 +111,8 @@ class CADSExtensionScript(scripts.Script):
 
                 p.extra_generation_params = {
                         "CADS Active": active,
+                        "CADS Tau 1 Step": step_start,
+                        "CADS Tau 2 Step": step_stop,
                         "CADS Tau 1": t1,
                         "CADS Tau 2": t2,
                         "CADS Noise Scale": noise_scale,
@@ -106,7 +121,7 @@ class CADSExtensionScript(scripts.Script):
                         "CADS Apply To Hires. Fix": apply_to_hr_pass,
                 }
                 self.create_hook(p, active, t1, t2, noise_scale, mixing_factor, rescale, first_pass_steps)
-        
+
         def create_hook(self, p, active, t1, t2, noise_scale, mixing_factor, rescale, total_sampling_steps, *args, **kwargs):
                 # Use lambda to call the callback function with the parameters to avoid global variables
                 y = lambda params: self.on_cfg_denoiser_callback(params, t1=t1, t2=t2, noise_scale=noise_scale, mixing_factor=mixing_factor, rescale=rescale, total_sampling_steps=total_sampling_steps)
@@ -172,7 +187,7 @@ class CADSExtensionScript(scripts.Script):
                 else:
                         logger.error('Unknown text_cond type')
                         pass
-        
+
         def before_hr(self, p, *args):
                 self.unhook_callbacks()
 
