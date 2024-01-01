@@ -1,6 +1,6 @@
 import torch
-
-from modules import devices, rng_philox, shared
+from . import rng_philox
+from modules import devices, shared
 
 
 def randn(seed, shape, generator=None):
