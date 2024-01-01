@@ -1,5 +1,5 @@
 import torch
-from rng import rng_philox
+from . import rng_philox
 from modules import devices, shared
 
 
