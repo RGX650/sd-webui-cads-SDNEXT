@@ -248,16 +248,24 @@ def cads_apply_field(field):
 def make_axis_options():
         xyz_grid = [x for x in scripts.scripts_data if x.script_class.__module__ == "xyz_grid.py"][0].module
         extra_axis_options = {
-                xyz_grid.AxisOption("[CADS] Active", str, cads_apply_override('cads_active', boolean=True), choices=xyz_grid.boolean_choice(reverse=True)),
-                xyz_grid.AxisOption("[CADS] Rescale CFG", str, cads_apply_override('cads_rescale', boolean=True), choices=xyz_grid.boolean_choice(reverse=True)),
+                #xyz_grid.AxisOption("[CADS] Active", str, cads_apply_override('cads_active', boolean=True), choices=xyz_grid.boolean_choice(reverse=True)),
+                #xyz_grid.AxisOption("[CADS] Rescale CFG", str, cads_apply_override('cads_rescale', boolean=True), choices=xyz_grid.boolean_choice(reverse=True)),
+                xyz_grid.AxisOption("[CADS] Active", str, cads_apply_field("cads_active")),
+                xyz_grid.AxisOption("[CADS] Rescale CFG", str, cads_apply_field("cads_rescale")),
                 xyz_grid.AxisOption("[CADS] Tau 1", float, cads_apply_field("cads_tau1")),
                 xyz_grid.AxisOption("[CADS] Tau 2", float, cads_apply_field("cads_tau2")),
                 xyz_grid.AxisOption("[CADS] Noise Scale", float, cads_apply_field("cads_noise_scale")),
                 xyz_grid.AxisOption("[CADS] Mixing Factor", float, cads_apply_field("cads_mixing_factor")),
-                xyz_grid.AxisOption("[CADS] Apply to Hires. Fix", str, cads_apply_override('cads_hr_fix_active', boolean=True), choices=xyz_grid.boolean_choice(reverse=True)),
+                #xyz_grid.AxisOption("[CADS] Apply to Hires. Fix", str, cads_apply_override('cads_hr_fix_active', boolean=True), choices=xyz_grid.boolean_choice(reverse=True)),
+                xyz_grid.AxisOption("[CADS] Apply to Hires. Fix", str, cads_apply_field("cads_hr_fix_active")),
         }
-        if not any("[CADS]" in x.label for x in xyz_grid.axis_options):
-                xyz_grid.axis_options.extend(extra_axis_options)
+        #if not any("[CADS]" in x.label for x in xyz_grid.axis_options):
+                #xyz_grid.axis_options.extend(extra_axis_options)
+
+        existing_labels = [option.label for option in xyz_grid.axis_options]
+        for option in extra_axis_options:
+                if f"[CADS] {option.label.split('] ')[1]}" not in existing_labels:
+                        xyz_grid.axis_options.append(option)
 
 def callback_before_ui():
         try:
