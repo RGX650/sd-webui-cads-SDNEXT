@@ -7,7 +7,7 @@ from collections import OrderedDict
 from typing import Union
 
 from modules import script_callbacks
-from ..rng import rng
+from rng import rng
 from modules.script_callbacks import CFGDenoiserParams
 
 import torch
