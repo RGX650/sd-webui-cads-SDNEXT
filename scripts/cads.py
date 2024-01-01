@@ -6,7 +6,8 @@ import numpy as np
 from collections import OrderedDict
 from typing import Union
 
-from modules import script_callbacks, rng
+from modules import script_callbacks
+from ..rng import rng
 from modules.script_callbacks import CFGDenoiserParams
 
 import torch
